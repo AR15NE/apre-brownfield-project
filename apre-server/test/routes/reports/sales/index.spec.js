@@ -143,3 +143,64 @@ describe('Apre Sales Report API - Sales by Region', () => {
     });
   });
 });
+
+// Tests for the getSalesDataByProduct function
+describe('getSalesDataByProduct', () => {
+  beforeEach(() => {
+    // Mock the mongo function
+    mongo.mockImplementation(async (callback) => {
+      const db = {
+        collection: jest.fn().mockReturnThis(),
+        aggregate: jest.fn().mockResolvedValue([
+          { _id: 'Product A', totalSales: 100 },
+          { _id: 'Product B', totalSales: 200 }
+        ])
+      };
+      await callback(db);
+    });
+  });
+
+  // Test that the function fetches sales data by product successfully
+  it('should fetch sales data by product', async () => {
+    const response = await request(app).get('/api/reports/sales/products');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([
+      { product: 'Product A', totalSales: 100 },
+      { product: 'Product B', totalSales: 200 }
+    ]);
+  });
+
+  // Test that the function returns an empty array when no sales data is found
+  it('should return an empty array when no sales data is found', async () => {
+    mongo.mockImplementation(async (callback) => {
+      const db = {
+        collection: jest.fn().mockReturnThis(),
+        aggregate: jest.fn().mockResolvedValue([])
+      };
+      await callback(db);
+    });
+
+    const response = await request(app).get('/api/reports/sales/products');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+  });
+
+  // Test that the function handles errors during data retrieval
+  it('should handle errors during data retrieval', async () => {
+    mongo.mockImplementation(async (callback) => {
+      const db = {
+        collection: jest.fn().mockReturnThis(),
+        aggregate: jest.fn().mockRejectedValue(new Error('MongoDB error'))
+      };
+      await callback(db);
+    });
+
+    const response = await request(app).get('/api/reports/sales/products');
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      message: 'MongoDB error',
+      status: 500,
+      type: 'error'
+    });
+  });
+});

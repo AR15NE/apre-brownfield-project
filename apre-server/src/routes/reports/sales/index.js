@@ -1,14 +1,6 @@
-/**
- * Author: Professor Krasso
- * Date: 8/14/24
- * File: index.js
- * Description: Apre sales report API for the sales reports
- */
-
-'use strict';
-
 const express = require('express');
 const { mongo } = require('../../../utils/mongo');
+const { salesService } = require('../../../services');
 
 const router = express.Router();
 
@@ -26,7 +18,7 @@ const router = express.Router();
  */
 router.get('/regions', (req, res, next) => {
   try {
-    mongo (async db => {
+    mongo(async db => {
       const regions = await db.collection('sales').distinct('region');
       res.send(regions);
     }, next);
@@ -50,7 +42,7 @@ router.get('/regions', (req, res, next) => {
  */
 router.get('/regions/:region', (req, res, next) => {
   try {
-    mongo (async db => {
+    mongo(async db => {
       const salesReportByRegion = await db.collection('sales').aggregate([
         { $match: { region: req.params.region } },
         {
@@ -77,5 +69,51 @@ router.get('/regions/:region', (req, res, next) => {
     next(err);
   }
 });
+
+// **New route added below**
+/**
+ * @description
+ *
+ * GET /sales-data
+ *
+ * Fetches sales data by product.
+ *
+ * Example:
+ * fetch('/sales-data')
+ *  .then(response => response.json())
+ *  .then(data => console.log(data));
+ */
+router.get('/sales-data', async (req, res, next) => {
+  try {
+    const salesData = await salesService.getSalesDataByProduct();
+    res.json(salesData);
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+// Function to fetch sales data by product
+async function getSalesDataByProduct() {
+  // Fetch sales data grouped by product
+  return new Promise((resolve, reject) => {
+    mongo(async db => {
+      const salesData = await db.collection('sales').aggregate([
+        { $group: { _id: '$product', totalSales: { $sum: '$amount' } } },
+        {
+          $project: {
+            _id: 0,
+            product: '$_id',
+            totalSales: 1
+          }
+        },
+        {
+          $sort: { product: 1 }
+        }
+      ]).toArray();
+      resolve(salesData);
+    }, reject);
+  });
+}
 
 module.exports = router;
