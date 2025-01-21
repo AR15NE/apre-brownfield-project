@@ -26,7 +26,7 @@ router.get('/regions', (req, res, next) => {
     console.error('Error getting regions: ', err);
     next(err);
   }
-});
+});nom install
 
 /**
  * @description
